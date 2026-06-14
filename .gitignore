@@ -1,0 +1,12 @@
+# Build artifacts
+/lamp
+*.exe
+
+# PlatformIO
+firmware/.pio/
+.pio/
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
