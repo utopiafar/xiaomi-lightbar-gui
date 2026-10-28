@@ -69,11 +69,19 @@ if (Test-Path $diagnostic) { Remove-Item -Force $diagnostic }
 try {
     $env:LIGHTBAR_LAUNCHER_CACHE = $cache
     $env:LIGHTBAR_LAUNCHER_DIAGNOSTIC = $diagnostic
+    $firstLaunch = $true
     foreach ($argument in @('--verify-only', '--verify-only', '--smoke-test')) {
         $process = Start-Process -FilePath $portable -ArgumentList $argument -Wait -PassThru
         if ($process.ExitCode -ne 0) {
             $details = if (Test-Path $diagnostic) { Get-Content -Raw $diagnostic } else { 'No launcher diagnostic was produced.' }
             throw "Single-file validation failed for $argument`: $details"
+        }
+        if ($firstLaunch) {
+            $extracted = @(Get-ChildItem $cache -Directory)
+            if ($extracted.Count -ne 1) { throw 'The launcher did not produce exactly one runtime cache.' }
+            python (Join-Path $projectDir 'core\tests\windows_smoke.py') (Join-Path $extracted[0].FullName 'lightbar_core.dll')
+            if ($LASTEXITCODE -ne 0) { throw 'The packaged Windows core smoke test failed.' }
+            $firstLaunch = $false
         }
     }
 } finally {
