@@ -23,7 +23,10 @@ $redistRoot = Join-Path $install 'VC\Redist\MSVC'
 if (-not (Test-Path $redistRoot)) { throw 'Visual C++ redistributable files were not found.' }
 $requiredCrt = @('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')
 $crtDirectory = $null
-foreach ($version in (Get-ChildItem $redistRoot -Directory | Sort-Object { [version]$_.Name } -Descending)) {
+$redistDirs = @(Get-ChildItem $redistRoot -Directory)
+$numbered = @($redistDirs | Where-Object { $_.Name -match '^\d+(\.\d+){1,3}$' } | Sort-Object { [version]$_.Name } -Descending)
+$aliases = @($redistDirs | Where-Object { $_.Name -match '^v\d+$' } | Sort-Object Name -Descending)
+foreach ($version in ($numbered + $aliases)) {
     $archDir = Join-Path $version.FullName 'x64'
     if (-not (Test-Path $archDir)) { continue }
     foreach ($candidate in (Get-ChildItem $archDir -Directory -Filter 'Microsoft.VC*.CRT')) {
