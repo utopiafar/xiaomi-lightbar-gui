@@ -1,0 +1,15 @@
+[package]
+name = "lightbar-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "lightbar_core"
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+getrandom = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serialport = "4.10.1"

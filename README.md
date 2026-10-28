@@ -2,6 +2,10 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+> A cross-platform Flutter desktop implementation is being developed in
+> [`desktop/`](desktop/README.md). It shares a Rust device-control core across
+> macOS, Windows and Linux. The macOS app described below remains available.
+
 An independent macOS menu bar controller for the **first-generation Xiaomi Mi
 Computer Monitor Light Bar (MJGJD01YL)**. An RF-Nano board connected over USB
 acts as the 2.4 GHz radio bridge; no Bluetooth, cloud account, or Home Assistant

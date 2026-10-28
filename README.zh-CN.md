@@ -2,6 +2,10 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+> 跨平台 Flutter 桌面应用正在 [`desktop/`](desktop/README.md) 中开发，
+> macOS、Windows 和 Linux 共用 Rust 设备控制内核。下文介绍的原版 macOS
+> 应用仍可使用。
+
 一个独立的 macOS 菜单栏工具，用来控制**第一代小米米家显示器挂灯 MJGJD01YL**。通过 USB 连接的 RF-Nano 作为 2.4 GHz 无线桥接器，无需蓝牙、云账号或 Home Assistant。
 
 <img src="assets/app-icon.png" alt="显示器和屏幕挂灯的插画" width="128">

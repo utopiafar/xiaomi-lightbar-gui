@@ -1,0 +1,16 @@
+Xiaomi Lightbar Controller — Windows x86_64 test build
+
+Extract the entire ZIP to a permanent folder and run xiaomi_lightbar_desktop.exe.
+The DLL and data folder must remain next to the executable.
+
+To add a Start menu shortcut, double-click Create-Start-Menu-Shortcut.cmd after
+moving the folder to its final location. Remove the shortcut from the
+Start menu Programs folder if you later move or delete the app.
+
+Connect an RF-Nano flashed with this project's firmware. Install the board's
+USB serial driver if Windows does not show a COM port. In the app, refresh the
+device list and select the correct port if it is not connected automatically.
+Read the original remote or use the optional computer-pairing flow.
+
+This is an experimental, unsigned build. The light bar has no feedback: the
+power control toggles and slider positions indicate requested targets only.

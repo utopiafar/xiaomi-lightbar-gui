@@ -3,6 +3,7 @@
 *.exe
 /build/
 /小米挂灯控制.app/
+/core/target/
 
 # PlatformIO
 firmware/.pio/

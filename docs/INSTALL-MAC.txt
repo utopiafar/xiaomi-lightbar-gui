@@ -1,0 +1,12 @@
+Xiaomi Lightbar Controller — macOS test build
+
+Open Xiaomi Lightbar.app on macOS 13 or later. Select the archive matching
+your Mac's processor: arm64 for Apple Silicon, x86_64 for Intel.
+This test build uses an ad-hoc signature and has not been notarized by Apple.
+
+Connect an RF-Nano flashed with this project's firmware. In the app, refresh
+the device list and select the correct port if it is not connected automatically.
+Read the original remote or use the optional computer-pairing flow.
+
+The light bar has no feedback: the power control toggles and slider positions
+indicate requested targets only.

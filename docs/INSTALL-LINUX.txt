@@ -1,0 +1,13 @@
+Xiaomi Lightbar Controller — Linux x86_64 test build
+
+Extract the entire archive, then run ./xiaomi_lightbar_desktop from the
+extracted directory. Keep the lib and data directories next to the executable.
+The bundle targets Ubuntu 22.04 or a compatible distribution with GTK 3.
+
+Connect an RF-Nano flashed with this project's firmware. If the serial port
+cannot be opened, check the distribution's device permissions and USB driver.
+Select the correct port in the app. Some desktop environments do not show a
+system tray, so the application also works as an ordinary window.
+
+This is an experimental build. The light bar has no feedback: the power
+control toggles and slider positions indicate requested targets only.
