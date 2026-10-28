@@ -2,6 +2,9 @@ name: Desktop test builds
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 'codex/desktop-test-build-*'
 
 permissions:
   contents: read
