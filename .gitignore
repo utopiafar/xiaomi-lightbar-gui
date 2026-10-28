@@ -1,6 +1,8 @@
 # Build artifacts
 /lamp
 *.exe
+/build/
+/小米挂灯控制.app/
 
 # PlatformIO
 firmware/.pio/
@@ -10,3 +12,8 @@ firmware/.pio/
 .idea/
 .vscode/
 .DS_Store
+
+# Local build tools and device backups
+.tools/
+backups/
+__pycache__/

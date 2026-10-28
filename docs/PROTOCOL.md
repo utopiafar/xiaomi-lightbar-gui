@@ -1,5 +1,7 @@
 # Protocol notes (Xiaomi MJGJD01YL / Telink TLSR8368)
 
+[English](PROTOCOL.md) | [简体中文](PROTOCOL.zh-CN.md)
+
 > **Attribution.** The packet format, CRC parameters, command codes, and the
 > pairing trick were reverse-engineered by
 > [lamperez/xiaomi-lightbar-nrf24](https://github.com/lamperez/xiaomi-lightbar-nrf24)
@@ -49,8 +51,8 @@ whitening step with seed `0x7F` — that was wrong; the reference applies none.)
     nRF24 address and send only the tail as payload. The sync run is then too
     short and the lamp ignores the packets. Don't.
 * **Channels:** 6, 43, 68 (2406 / 2443 / 2468 MHz), with frequency hopping.
-* **Burst:** each logical command is one packet (one counter value) repeated
-  ~20× across the 3 channels for reliability.
+* **Burst:** each logical command uses one packet and counter value, repeated
+  20 times on each of the 3 channels for reliability.
 
 ## The sequence counter — two non-obvious traps
 
@@ -64,9 +66,10 @@ fresh press.
 2. **Persist the counter across resets.** On a host-over-serial setup, opening
    the serial port toggles DTR and **resets the MCU**, zeroing a RAM counter —
    so every command would ship counter `0` and the lamp would ignore all but the
-   first. Store the counter in EEPROM, load it at boot, and save it after each
-   command. (This trap is specific to the PC-bridge topology and is why we hit
-   it where the RPi/direct-SPI projects don't.)
+   first. The adapted firmware checkpoints the counter to EEPROM every 16
+   commands. At boot it skips 16 values and immediately saves that new starting
+   point, so a reset cannot reuse the last counter in an interrupted block.
+   This reduces EEPROM wear when sliders generate multiple commands.
 
 ## Command codes
 
@@ -81,6 +84,10 @@ fresh press.
 
 `cmd2` magnitude is the step size (farther from `0x01`/`0xFF` = bigger step).
 For on/off and reset, `cmd2` is effectively ignored.
+
+The app's 0–15 sliders first send a 16-step decrease to anchor at the minimum,
+then send the requested increase. The lamp does not acknowledge either packet;
+the displayed value is therefore a target, not confirmed state.
 
 ## Pairing (bind to an arbitrary ID)
 

@@ -1,4 +1,4 @@
-module github.com/alxndrchernov/auto-lamp
+module github.com/utopiafar/xiaomi-lightbar-mac
 
 go 1.22
 

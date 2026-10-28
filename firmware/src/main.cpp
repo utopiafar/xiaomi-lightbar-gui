@@ -12,6 +12,7 @@
 #include <EEPROM.h>
 #include <SPI.h>
 #include <RF24.h>
+#include "SequenceCounter.h"
 
 // ----- Pin definitions (swap if needed for your RF-NANO revision) -----
 #define CE_PIN  10
@@ -34,13 +35,11 @@ static const uint8_t CHANNELS[3] = {6, 43, 68};
 
 // NRF24 TX address — 5-byte sync run that precedes the Telink preamble.
 static const uint8_t SYNC_ADDR[5] = {0x55, 0x55, 0x55, 0x55, 0x55};
-// RX (sniffer) address — first 5 bytes of Telink preamble, to catch the
-// original remote's transmissions when scanning for its ID.
-static const uint8_t RX_PIPE_ADDR[5] = {0x53, 0x39, 0x14, 0xDD, 0x1C};
-// Scan payload: 12 bytes (preamble[5..7] + id + rest)
-#define SCAN_PAYLOAD_SIZE 12
-// Expected tail of preamble in received scan payload
-static const uint8_t PREAMBLE_TAIL[3] = {0x49, 0x34, 0x12};
+// The remote's sync stream can be captured as an nRF24 address. This receive
+// framing and bit realignment follow ebinf/lightbar2mqtt (MIT); see the
+// included third-party license.
+static const uint8_t RX_PIPE_ADDR[5] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
+#define SCAN_PAYLOAD_SIZE 17
 
 // ----- EEPROM layout -----
 #define EEPROM_MAGIC_VAL  0xAB
@@ -52,17 +51,18 @@ static const uint8_t PREAMBLE_TAIL[3] = {0x49, 0x34, 0x12};
 RF24 radio(CE_PIN, CSN_PIN);
 
 uint8_t remoteId[3] = {0x00, 0x00, 0x00};
-uint8_t seqCounter  = 0;
+SequenceCounter seqCounter;
 bool    scanning    = false;
+bool    scanDiagnostic = false;
 bool    sniffing    = false;
 bool    sniff1Mbps  = false;  // false=2Mbps, true=1Mbps
+bool    radioReady  = false;
 
 // ----- EEPROM helpers -----
 static void loadIdFromEEPROM() {
-    // Counter persists independently of the ID magic: opening the serial port
-    // resets the board, so the counter must survive resets to keep changing
-    // between commands (the lamp ignores a repeated counter as a duplicate).
-    seqCounter = EEPROM.read(EEPROM_ADDR_SEQ);
+    // Skip beyond the previous block on boot and persist the new starting
+    // point, so even an interrupted block cannot repeat its last counter.
+    EEPROM.update(EEPROM_ADDR_SEQ, seqCounter.begin(EEPROM.read(EEPROM_ADDR_SEQ)));
 
     if (EEPROM.read(EEPROM_ADDR_MAGIC) != EEPROM_MAGIC_VAL) return;
     remoteId[0] = EEPROM.read(EEPROM_ADDR_ID);
@@ -119,7 +119,7 @@ static void buildPacket(uint8_t *pkt, uint8_t cmd1, uint8_t cmd2) {
     pkt[9]  = remoteId[1];
     pkt[10] = remoteId[2];
     pkt[11] = 0xFF;
-    pkt[12] = seqCounter++;
+    pkt[12] = seqCounter.next();
     pkt[13] = cmd1;
     pkt[14] = cmd2;
     uint16_t crc = crc16(pkt, 15);
@@ -130,14 +130,15 @@ static void buildPacket(uint8_t *pkt, uint8_t cmd1, uint8_t cmd2) {
 // ----- Send command: one packet (one counter) blasted 20× × 3 channels -----
 // The counter MUST stay fixed for the whole burst: the lamp treats each new
 // counter value as a fresh button press. Building the packet once (single
-// counter++) means the lamp registers exactly one logical command, while the
+// counter advance) means the lamp registers exactly one logical command, while the
 // repetitions and channel hopping just buy reception reliability.
 static void sendCommand(uint8_t cmd1, uint8_t cmd2) {
     uint8_t pkt[TX_PAYLOAD_SIZE];
     buildPacket(pkt, cmd1, cmd2);   // single counter for the entire burst
-    // Persist the advanced counter so the next command (after the port-open
-    // reset) uses a fresh value the lamp won't treat as a duplicate.
-    EEPROM.update(EEPROM_ADDR_SEQ, seqCounter);
+    // Persist once per block, rather than on every slider update.
+    if (seqCounter.needsCheckpoint()) {
+        EEPROM.update(EEPROM_ADDR_SEQ, seqCounter.checkpoint());
+    }
 
     radio.stopListening();
 
@@ -172,9 +173,10 @@ static bool initRadio() {
 // ----- Scan (RX sniffer) mode helpers -----
 static void startScan() {
     scanning = true;
+    scanDiagnostic = false;
     radio.setPayloadSize(SCAN_PAYLOAD_SIZE);
     radio.openReadingPipe(1, RX_PIPE_ADDR);
-    radio.setChannel(CHANNELS[0]);
+    radio.setChannel(68);  // fixed 2468 MHz, as used by lightbar2mqtt
     radio.startListening();
 }
 
@@ -247,42 +249,38 @@ static void processSniff() {
 static void processScan() {
     if (!scanning) return;
 
-    // Rotate channels every loop iteration for broader coverage
-    static uint8_t chIdx = 0;
-    static uint32_t lastRotate = 0;
-    if (millis() - lastRotate > 20) {
-        chIdx = (chIdx + 1) % 3;
-        radio.stopListening();
-        radio.setChannel(CHANNELS[chIdx]);
-        radio.startListening();
-        lastRotate = millis();
-    }
-
     if (!radio.available()) return;
 
-    // Receive 12 bytes: preamble[5..7] + remoteId[0..2] + 0xFF + seq + cmd + CRC
-    uint8_t buf[SCAN_PAYLOAD_SIZE];
-    radio.read(buf, SCAN_PAYLOAD_SIZE);
-
-    // DEBUG: print raw received bytes
-    Serial.print("RAW:");
-    for (uint8_t i = 0; i < SCAN_PAYLOAD_SIZE; i++) {
-        if (buf[i] < 0x10) Serial.print("0");
-        Serial.print(buf[i], HEX);
-        Serial.print(" ");
+    // The nRF24 has consumed part of the Telink preamble as its own address
+    // and packet-control bits. Restore the missing upper five bits and align
+    // the remaining stream (as in lightbar2mqtt's Radio::handlePackage).
+    uint8_t raw[SCAN_PAYLOAD_SIZE];
+    uint8_t data[TX_PAYLOAD_SIZE];
+    radio.read(raw, sizeof(raw));
+    data[0] = 0x50 | (raw[0] >> 5);
+    for (uint8_t i = 1; i < sizeof(data); i++) {
+        data[i] = (uint8_t)((raw[i - 1] << 3) | (raw[i] >> 5));
     }
-    Serial.println();
+    if (scanDiagnostic) {
+        static uint32_t lastReport = 0;
+        if (millis() - lastReport > 250) {
+            Serial.print("RAW:");
+            for (uint8_t i = 0; i < sizeof(raw); i++) {
+                if (raw[i] < 0x10) Serial.print("0");
+                Serial.print(raw[i], HEX);
+            }
+            Serial.println();
+            lastReport = millis();
+        }
+    }
+    if (memcmp(data, PREAMBLE, sizeof(PREAMBLE)) != 0 || data[11] != 0xFF) return;
+    uint16_t expected = ((uint16_t)data[15] << 8) | data[16];
+    if (crc16(data, 15) != expected) return;
 
-    // Validate remaining preamble tail (no dewhitening — remote sends raw)
-    if (memcmp(buf, PREAMBLE_TAIL, 3) != 0) return;
-
-    // Remote ID is at bytes [3..5]
+    char id[9];
+    snprintf(id, sizeof(id), "%02X:%02X:%02X", data[8], data[9], data[10]);
     Serial.print("FOUND:");
-    Serial.print(buf[3], HEX);
-    Serial.print(":");
-    Serial.print(buf[4], HEX);
-    Serial.print(":");
-    Serial.println(buf[5], HEX);
+    Serial.println(id);
 }
 
 // ----- Parse hex byte from two ASCII chars -----
@@ -304,7 +302,37 @@ static void handleLine(char *line) {
     uint8_t len = strlen(line);
     if (len && line[len - 1] == '\r') line[--len] = '\0';
 
-    if (strcmp(line, "SCAN") == 0) {
+    if (strcmp(line, "PING") == 0) {
+        Serial.println(radioReady ? "READY" : "ERR NRF24 init failed");
+
+    } else if (strcmp(line, "EEPROM_DUMP") == 0) {
+        // Some Nano bootloaders return flash bytes when asked to read EEPROM.
+        // This permits an accurate backup before the bridge writes its ID.
+        Serial.print("EEPROM:");
+        for (uint16_t i = 0; i < EEPROM.length(); i++) {
+            uint8_t value = EEPROM.read(i);
+            if (value < 0x10) Serial.print("0");
+            Serial.print(value, HEX);
+        }
+        Serial.println();
+
+    } else if (!radioReady) {
+        Serial.println("ERR NRF24 init failed");
+
+    } else if (strncmp(line, "SCAN_DIAG ", 10) == 0) {
+        int channel = atoi(line + 10);
+        if (channel < 0 || channel > 125) {
+            Serial.println("ERR bad channel");
+            return;
+        }
+        startScan();
+        scanDiagnostic = true;
+        radio.stopListening();
+        radio.setChannel((uint8_t)channel);
+        radio.startListening();
+        Serial.println("OK");
+
+    } else if (strcmp(line, "SCAN") == 0) {
         startScan();
         Serial.println("OK");
 
@@ -429,7 +457,8 @@ static void handleLine(char *line) {
 void setup() {
     Serial.begin(115200);
     loadIdFromEEPROM();
-    if (!initRadio()) {
+    radioReady = initRadio();
+    if (!radioReady) {
         Serial.println("ERR NRF24 init failed");
     } else {
         Serial.println("READY");

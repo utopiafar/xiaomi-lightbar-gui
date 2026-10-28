@@ -21,8 +21,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/alxndrchernov/auto-lamp/internal/config"
-	"github.com/alxndrchernov/auto-lamp/internal/serial"
+	"github.com/utopiafar/xiaomi-lightbar-mac/internal/config"
+	"github.com/utopiafar/xiaomi-lightbar-mac/internal/serial"
 )
 
 func usage() {
