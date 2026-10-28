@@ -33,10 +33,12 @@ for arch in arm64 x86_64; do
   ditto "$app_dir" "$stage_dir/Xiaomi Lightbar.app"
   while IFS= read -r -d '' binary; do
     if file -b "$binary" | grep -q 'Mach-O'; then
-      lipo -verify_arch "$arch" "$binary"
-      lipo "$binary" -thin "$arch" -output "$binary.thin"
-      chmod --reference="$binary" "$binary.thin" 2>/dev/null || chmod +x "$binary.thin"
-      mv "$binary.thin" "$binary"
+      lipo "$binary" -verify_arch "$arch"
+      if [ "$(lipo "$binary" -archs)" != "$arch" ]; then
+        lipo "$binary" -thin "$arch" -output "$binary.thin"
+        chmod --reference="$binary" "$binary.thin" 2>/dev/null || chmod +x "$binary.thin"
+        mv "$binary.thin" "$binary"
+      fi
     fi
   done < <(find "$stage_dir/Xiaomi Lightbar.app" -type f -print0)
   codesign --force --deep --sign - "$stage_dir/Xiaomi Lightbar.app"

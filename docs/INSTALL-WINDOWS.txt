@@ -3,6 +3,10 @@ Xiaomi Lightbar Controller — Windows x86_64 test build
 Extract the entire ZIP to a permanent folder and run xiaomi_lightbar_desktop.exe.
 The DLL and data folder must remain next to the executable.
 
+Windows 10/11 x86_64 is required. If the app reports missing MSVCP140.dll or
+VCRUNTIME140.dll, install Microsoft's Visual C++ Redistributable (x64):
+https://aka.ms/vc14/vc_redist.x64.exe
+
 To add a Start menu shortcut, double-click Create-Start-Menu-Shortcut.cmd after
 moving the folder to its final location. Remove the shortcut from the
 Start menu Programs folder if you later move or delete the app.
