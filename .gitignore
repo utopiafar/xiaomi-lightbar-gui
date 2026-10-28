@@ -4,6 +4,7 @@
 /build/
 /小米挂灯控制.app/
 /core/target/
+/windows-launcher/target/
 
 # PlatformIO
 firmware/.pio/

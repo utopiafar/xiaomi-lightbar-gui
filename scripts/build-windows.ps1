@@ -32,3 +32,4 @@ Copy-Item (Join-Path $projectDir 'scripts\Create-Start-Menu-Shortcut.cmd') $bund
 $archive = Join-Path $artifactDir 'xiaomi-lightbar-windows-x86_64.zip'
 Compress-Archive -Force -Path (Join-Path $bundle '*') -DestinationPath $archive
 Write-Host "Built: $archive"
+& (Join-Path $projectDir 'scripts\build-windows-single.ps1') -BundleArchive $archive -ArtifactDir $artifactDir

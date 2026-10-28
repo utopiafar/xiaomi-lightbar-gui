@@ -36,6 +36,11 @@ archives; macOS is ad-hoc signed and Windows is unsigned. Distribution signing
 and notarization are not configured. A manual GitHub Actions workflow is also
 provided in `.github/workflows/desktop-builds.yml`.
 
+Windows builds also produce `Xiaomi-Lightbar-Windows-x86_64.exe`, a single
+portable executable. Its first launch extracts a versioned runtime into the
+current user's local application-data folder, which can be deleted to remove
+the cached files. The bundle includes the required Visual C++ runtime DLLs.
+
 The Linux builder can also run in Docker on another host:
 
 ```sh

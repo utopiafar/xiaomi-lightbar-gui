@@ -1,0 +1,14 @@
+Xiaomi Lightbar Controller — Windows x86_64 single-file test build
+
+Double-click Xiaomi-Lightbar-Windows-x86_64.exe on Windows 10/11 x86_64.
+The first launch extracts the application and its runtime libraries into
+%LOCALAPPDATA%\XiaomiLightbar\runtime; later launches reuse that cache.
+No administrator rights or separate Visual C++ runtime installation is needed.
+The extracted runtime remains there until you delete that directory.
+
+To add it to the Start menu, right-click the EXE and choose "Pin to Start".
+Connect an RF-Nano flashed with this project's firmware, install the board's
+USB driver if necessary, and select the appropriate COM port in the app.
+
+This is an experimental, unsigned build. Pairing a computer may replace the
+original remote's binding. The lamp does not report its power or slider state.

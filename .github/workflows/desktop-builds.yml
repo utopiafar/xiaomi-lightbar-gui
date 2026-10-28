@@ -27,7 +27,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows-x86_64
-          path: build/artifacts/xiaomi-lightbar-windows-x86_64.zip
+          path: |
+            build/artifacts/xiaomi-lightbar-windows-x86_64.zip
+            build/artifacts/Xiaomi-Lightbar-Windows-x86_64.exe
           if-no-files-found: error
 
   linux:
